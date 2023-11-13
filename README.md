@@ -4,8 +4,8 @@ The project aims to overcome limitations in relay-based control systems by offer
 
 ```
 prime/
-├── hmi (human-machine interface)
-├── embedded
+├── augmented-reality
 ├── dashboard
-└── augmented-reality
+├── embedded
+└── hmi (human-machine interface)
 ```

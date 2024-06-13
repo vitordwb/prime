@@ -1,0 +1,16 @@
+{
+    "wifi": {
+        "ssid": "ssid", 
+        "password": "password"
+    }, 
+    "db": {
+        "url":"URL-firebaseio.com",
+        "name":"rele006"
+     },
+     "config":{
+        "IP":"192.168.1.11",
+        "mac-addrress":"your_mac_address"
+     }
+}
+
+

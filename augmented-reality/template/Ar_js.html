@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <title>AGR</title>
+    <script src="https://cdn.jsdelivr.net/gh/aframevr/aframe@1.3.0/dist/aframe-master.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
+</head>
+<body>
+    <a-scene embedded arjs="trackingMethod: best; debugUIEnabled: false;">
+        <!-- https://jeromeetienne.github.io/AR.js/three.js/examples/arcode.html para gerar o qr code customizado -->
+        <a-marker preset="custom" type="pattern" url="{{ url_for('static', filename='pattern_fei.patt') }}">
+            <a-text
+                id="relayID"
+                position="-3 1 0"
+                color="white"
+                align="left"
+                scale="1 1 1"
+                rotation="-90 0 0"
+            ></a-text>
+
+            <a-text
+                id="name_relay"
+                position="0 0 -1"
+                color="white"
+                align="center"
+                scale="1 1 1"
+                rotation="-90 0 0"
+            ></a-text>
+
+            <a-text
+                id="action"
+                visible="false"
+                value=""
+                position="2 0 0"
+                color="white"
+                align="center"
+                scale="1 1 1"
+                rotation="-90 0 0"
+            ></a-text>
+
+            <a-plane class="clickable" id="icon" rotation="-90 0 0" material="src:/static/safe_icon.png">
+            </a-plane>
+        </a-marker>
+
+        <a-entity camera></a-entity>
+
+        <script>
+
+            const threshold = () => {
+                return [
+                    [[0,10],"safe_icon.png","No\nAlerts"],
+                    [[11,20],"warning_icon.png","Necessary\nChange\nSoon"],
+                    [[21,10**10],"danger_icon.png","Urgently\nNeeded\nChange"]
+            ]}
+
+            const check_belong = (number) => {
+                const threshold_ = threshold();
+                for(let i of threshold_){
+                    var [a,b,c] = i ;
+                    if(number >= a[0] && number <= a[1]){
+                        return [b,c] ;
+                    }
+                }
+                return null ;
+            }
+
+            const URL = "https://smart-relay-a053d-default-rtdb.firebaseio.com/rele006.json";
+
+            function fetchData() {
+                return new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    const databaseURL = URL;
+                    xhr.open('GET', databaseURL, true);
+                    xhr.onreadystatechange = function () {
+                        if (xhr.readyState === 4) {
+                            if (xhr.status === 200) {
+                                const data = JSON.parse(xhr.responseText);
+                                const keys = Object.keys(data);
+                                const lastKey = keys[keys.length - 1];
+                                const lastElement = data[lastKey];
+                                resolve(lastElement);
+                            } else {
+                                reject('Error fetching data: ' + xhr.statusText);
+                            }
+                        }
+                    };
+
+                    xhr.send();
+                });
+            }
+
+            const parse_and_show = (json_new_data) => {
+
+                // aqui pegamos e selecionamos o JSON de informações
+                // sobre o status atual de um relé especifico
+                // o JSON vira de uma requisição ao banco de dados
+                // **sera substituido por uma requsicao ajax**
+
+                let text ;
+                let alert = null ;
+
+                if (!json_new_data.corrente_baixo[0]) {
+                    alert += `
+                    Erro Sensor Corrente Inferior
+                    ` ;
+                }else{
+                    text += `
+                    Corrente Inferior:
+                        Consumo (kWh): ${json_new_data.corrente_baixo[1].consumo.toFixed(2)}
+                        Pot. Aparente (kVA): ${json_new_data.corrente_baixo[1].potencia_apa.toFixed(2)}
+                        Pot. Ativa (kW): ${json_new_data.corrente_baixo[1].potencia_ativ.toFixed(2)}
+                        Corrente RMS (A): ${json_new_data.corrente_baixo[1].corrente_rms.toFixed(2)}
+                    `;
+                }
+
+                if (!json_new_data.corrente_cima[0]) {
+                    alert +=  `
+                    Erro Sensor Corrente Superior
+                    ` ;
+                }else{
+                    text += `
+                    Corrente Superior:
+                        Consumo (kWh): ${json_new_data.corrente_cima[1].consumo.toFixed(2)}
+                        Pot. Aparente (kVA): ${json_new_data.corrente_cima[1].potencia_apa.toFixed(2)}
+                        Pot. Ativa (kW): ${json_new_data.corrente_cima[1].potencia_ativ.toFixed(2)}
+                        Corrente RMS (A): ${json_new_data.corrente_cima[1].corrente_rms.toFixed(2)}
+                    `;
+                }
+
+
+                text += `
+                Ciclos: ${json_new_data.counter}
+                    `
+
+                if (!json_new_data.rpm_cima[0]) {
+                    alert +=  `
+                    Erro Sensor Velocidade Superior
+                    ` ;
+                }else{
+                    text += `
+                    Velocidade Superior (RPM): ${json_new_data.rpm_cima[1]}
+                    `;
+                }
+
+                if (!json_new_data.temperatura_cobre[0]) {
+                    alert +=  `
+                    Erro Sensor Temperatura Cobre
+                    ` ;
+                }else{
+                    text += `
+                    Temperatura Cobre (C°): ${json_new_data.temperatura_cobre[1].toFixed(2)}
+                    `;
+                }
+
+                if (!json_new_data.temperatura_externa[0]) {
+                    alert +=  `
+                    Erro Sensor Temperatura Externa
+                    ` ;
+                }else{
+                    text += `
+                    Temperatura Externa (C°): ${json_new_data.temperatura_externa[1].toFixed(2)}
+                    `;
+                }
+
+                if (!json_new_data.temperatura_interna[0]) {
+                    alert+=alert +=  `
+                    Erro Sensor Temperatura Interna
+                    ` ;;
+                }else{
+                    text += `
+                    Temperatura Interna (C°): ${json_new_data.temperatura_interna[1].toFixed(2)}
+                    `;
+                }
+
+                return {
+                    text: text,
+                    name: "relay004",
+                    status: alert,
+                    cycles: json_new_data.counter[1],
+                    operation: json_new_data.state
+                };
+            }
+
+            function cleanString(inputString, pattern) {
+                // Escape special characters in the pattern and create a regular expression
+                const escapedPattern = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(escapedPattern, 'g');
+
+                // Replace all occurrences of the pattern with an empty string
+                const cleanedString = inputString.replace(regex, '');
+
+                return cleanedString;
+            }
+
+            function updateTextWithDatetime() {
+                var messageText = document.getElementById('relayID');
+                var nameRelay   = document.getElementById('name_relay');
+                var icon        = document.getElementById('icon');
+                var action      = document.getElementById('action')
+
+                fetchData()
+                    .then(result => {
+                        const info = parse_and_show(result);
+
+                        info.text = cleanString(info.text,'undefined');
+                        messageText.setAttribute('value', info.text);
+
+                        console.log(info.text)
+
+                        icon.setAttribute("material","src:/static/safe_icon.png");
+                        action.setAttribute("visible","true")
+                        var value_ = action.getAttribute("value");
+                        action.setAttribute("value",info.operation);
+
+                        const normal_op = [
+                            "OPERACAO NORMAL",
+                            "PORTA FECHADA",
+                            "OPERACAO NORMAL DE RESFRIAMENTO",
+                            "TENTATIVA DE FREE COOLING"
+                        ]
+
+                        const warning = [
+                            "PORTA ABERTA"
+                        ]
+
+
+                        if(info.status !== null || !normal_op.includes(info.operation) && !warning.includes(info.operation)){
+                            icon.setAttribute("material","src:/static/danger_icon.png")
+                            action.setAttribute("visible","true")
+                            var value_ = action.getAttribute("value");
+
+                            if(info.status === null){
+                                const log = info.operation + "\n" ;
+                            }else{
+                                const log = info.operation + "\n" + info.status;
+                            }
+                            action.setAttribute("value",log);
+                        }else if(warning.includes(info.operation)){
+                            icon.setAttribute("material","src:/static/warning_icon.png")
+                            action.setAttribute("visible","true")
+                            var value_ = action.getAttribute("value");
+
+                            if(info.status === null){
+                                const log = info.operation + "\n" ;
+                            }else{
+                                const log = info.operation + "\n" + info.status;
+                            }
+                        }else{
+                            icon.setAttribute("material","src:/static/safe_icon.png")
+                            action.setAttribute("visible","true")
+                            var value_ = action.getAttribute("value");
+
+                            if(info.status === null){
+                                const log = info.operation + "\n" ;
+                            }else{
+                                const log = info.operation + "\n" + info.status;
+                            }
+                        }
+
+                    }
+
+
+                    )
+                    .catch(error => {
+                        console.error(error);
+                    });
+
+            }
+
+            updateTextWithDatetime();
+
+            setInterval(updateTextWithDatetime, 1000);
+
+        </script>
+
+    </a-scene>
+</body>
+</html>
